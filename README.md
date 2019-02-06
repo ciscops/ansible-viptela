@@ -1,38 +1,111 @@
-Role Name
-=========
+# ansible-viptela
 
-A brief description of the role goes here.
 
-Requirements
-------------
+An Ansible Role for automating a Viptela Overlay Network
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+This role can perform the following functions:
+- Add Controllers
+- Set Organization Name
+- Set vBond
+- Set Enterprise Root CA
+- Get Controller CSR
+- Install Controller Certificate
+- Install Serial File
 
-Role Variables
---------------
+## Examples
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
 
-Dependencies
-------------
+Add vBond Host:
+```yaml
+    - name: Add vBond Hosts
+      include_role:
+        name: ansible-viptela
+        tasks_from: add-controller
+      vars:
+        device_hostname: "{{ item }}"
+        device_ip: "{{ hostvars[item].transport_ip }}"
+        device_personality: vbond
+      loop: "{{ groups.vbond_hosts }}"
+```
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+Add vSmart Host:
+```yaml
+    - name: Add vSmart Hosts
+      include_role:
+        name: ansible-viptela
+        tasks_from: add-controller
+      vars:
+        device_hostname: "{{ item }}"
+        device_ip: "{{ hostvars[item].transport_ip }}"
+        device_personality: vsmart
+      loop: "{{ groups.vsmart_hosts }}"
+```
 
-Example Playbook
-----------------
+Set Organization:
+```yaml
+    - name: Set organization
+      include_role:
+        name: ansible-viptela
+        tasks_from: set-org
+      vars:
+        org_name: "{{ organization_name }}"
+```
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Set vBond:
+```yaml
+    - name: Set vBond
+      include_role:
+        name: ansible-viptela
+        tasks_from: set-vbond
+      vars:
+        vbond_ip: "{{ hostvars[vbond_controller].transport_ip }}"
+```
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+Set Enterprise Root CA:
+```yaml
+    - name: Set Enterprise Root CA
+      include_role:
+        name: ansible-viptela
+        tasks_from: set-rootca
+      vars:
+        root_cert: "{{lookup('file', '{{ viptela_cert_dir }}/myCA.pem')}}"
+```
+
+Get Controller CSR:
+```yaml
+    - name: Get Controler CSR
+      include_role:
+        name: ansible-viptela
+        tasks_from: get-csr
+      vars:
+        device_ip: "{{ hostvars[item].transport_ip }}"
+        device_hostname: "{{ item }}"
+        csr_filename: "{{ viptela_cert_dir }}/{{ item }}.{{ env }}.csr"
+      loop: "{{ groups.viptela_control }}"
+```
+
+Installing Controller Certificates:
+```yaml
+    - name: Install Controller Certificate
+      include_role:
+        name: ansible-viptela
+        tasks_from: install-cert
+      vars:
+        device_cert: "{{lookup('file', '{{ viptela_cert_dir }}/{{ item }}.{{ env }}.crt')}}"
+      loop: "{{ groups.viptela_control }}"
+```
+
+Installing Serial File:
+```yaml
+    - name: Install Serial File
+      include_role:
+       name: ansible-viptela
+       tasks_from: install-serials
+      vars:
+       viptela_serial_file: 'licenses/viptela_serial_file.viptela'
+```
 
 License
 -------
 
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+CISCO SAMPLE CODE LICENSE
