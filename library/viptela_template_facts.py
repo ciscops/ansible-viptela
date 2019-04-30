@@ -64,17 +64,15 @@ message:
     description: The output message that the sample module generates
 '''
 
-# import requests
+import requests
 from ansible.module_utils.basic import AnsibleModule, json
 from ansible.module_utils.viptela import viptelaModule, viptela_argument_spec
+
 
 def run_module():
     # define available arguments/parameters a user can pass to the module
     argument_spec = viptela_argument_spec()
-    argument_spec.update(state=dict(type='str', choices=['absent', 'present'], default='present'),
-                         name=dict(type='str', required=True),
-                         file=dict(type='str', required=True),
-                         dest=dict(type='str', default='/data/intdatastore/uploads'),
+    argument_spec.update(factory_default=dict(type='bool', default=False),
                          )
 
     # seed the result dict in the object
@@ -95,8 +93,7 @@ def run_module():
     module = AnsibleModule(argument_spec=argument_spec,
                            supports_check_mode=True,
                            )
-    viptela = viptelaModule(module, function='package')
-
+    viptela = viptelaModule(module)
 
     # if the user is working with this module in only check mode we do not
     # want to make any changes to the environment, just return the current
@@ -104,13 +101,15 @@ def run_module():
     if module.check_mode:
         return result
 
+    viptela.result['feature_templates'] = viptela.get_feature_templates(factory_default=viptela.params['factory_default'])
+    viptela.result['device_templates'] = viptela.get_device_templates()
 
     # if the user is working with this module in only check mode we do not
     # want to make any changes to the environment, just return the current
     # state with no modifications
     # FIXME: Work with viptela so they can implement a check mode
     if module.check_mode:
-        module.exit_json(**viptela.result)
+        viptela.exit_json(**viptela.result)
 
     # execute checks for argument completeness
 
@@ -119,7 +118,7 @@ def run_module():
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
-    module.exit_json(**viptela.result)
+    viptela.exit_json(**viptela.result)
 
 def main():
     run_module()

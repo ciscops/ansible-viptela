@@ -14,5 +14,3 @@
     return_content: yes
   register: uri_results
   delegate_to: localhost
-
-#- debug: var=uri_results

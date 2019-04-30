@@ -65,10 +65,6 @@ message:
 '''
 
 import requests
-import os.path
-# from requests.auth import HTTPBasicAuth
-# from paramiko import SSHClient
-# from scp import SCPClient
 from ansible.module_utils.basic import AnsibleModule, json
 from ansible.module_utils.viptela import viptelaModule, viptela_argument_spec
 
@@ -76,8 +72,16 @@ from ansible.module_utils.viptela import viptelaModule, viptela_argument_spec
 def run_module():
     # define available arguments/parameters a user can pass to the module
     argument_spec = viptela_argument_spec()
-    argument_spec.update(file=dict(type='str', required=True),
-                         )
+    argument_spec.update(state=dict(type='str', choices=['absent', 'present'], default='present'),
+                         name = dict(type='str', alias='templateName'),
+                         description = dict(type='str', alias='templateDescription'),
+                         definition = dict(type='str', alias='templateDefinition'),
+                         type = dict(type='str', alias='templateType'),
+                         device_type = dict(type='list', alias='deviceType'),
+                         template_min_version = dict(type='str', alias='templateMinVersion'),
+                         factory_default=dict(type='bool', alias='factoryDefault'),
+                         aggregate=dict(type='dict'),
+    )
 
     # seed the result dict in the object
     # we primarily care about changed and state
@@ -86,8 +90,6 @@ def run_module():
     # for consumption, for example, in a subsequent task
     result = dict(
         changed=False,
-        original_message='',
-        message=''
     )
 
     # the AnsibleModule object will be our abstraction working with Ansible
@@ -99,39 +101,35 @@ def run_module():
                            )
     viptela = viptelaModule(module)
 
-
     # if the user is working with this module in only check mode we do not
     # want to make any changes to the environment, just return the current
     # state with no modifications
     if module.check_mode:
         return result
 
-    # manipulate or modify the state as needed (this is going to be the
-    # part where your module will do what it needs to do)
-    # result['original_message'] = module.params['name']
+    feature_templates = viptela.get_feature_templates(factory_default=True)
 
-    # use whatever logic you need to determine whether or not this module
-    # made any modifications to your target
-    # if module.params['new']:
-    #     result['changed'] = True
-
-    response = viptela.request('/dataservice/system/device/fileupload', method='POST',
-                               files={'file': open(module.params['file'])},
-                               data={'validity':'valid', 'upload':'true'},
-                               headers=None)
-
-    json = response.json()
-    viptela.result['json'] = json
-    viptela.result['msg'] = json['vedgeListUploadStatus']
-    if 'successfully' in json['vedgeListUploadStatus']:
-        viptela.result['changed'] = True
+    if viptela.params['aggregate']:
+        if viptela.params['state'] == 'present':
+            for name, data in viptela.params['aggregate'].items():
+                if name not in feature_templates:
+                    payload = {}
+                    payload['templateName'] = name
+                    payload['templateDescription'] = data['templateDescription']
+                    payload['deviceType'] = data['deviceType']
+                    payload['templateDefinition'] = data['templateDefinition']
+                    payload['templateType'] = data['templateType']
+                    payload['templateMinVersion'] = data['templateMinVersion']
+                    payload['factoryDefault'] = data['factoryDefault']
+                    response = viptela.request('/dataservice/template/feature/', method='POST', data=json.dumps(payload))
+                    viptela.result['changed'] = True
 
     # if the user is working with this module in only check mode we do not
     # want to make any changes to the environment, just return the current
     # state with no modifications
     # FIXME: Work with viptela so they can implement a check mode
     if module.check_mode:
-        viptela.exit_json()
+        viptela.exit_json(**viptela.result)
 
     # execute checks for argument completeness
 
@@ -140,7 +138,7 @@ def run_module():
 
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
-    viptela.exit_json()
+    viptela.exit_json(**viptela.result)
 
 def main():
     run_module()
